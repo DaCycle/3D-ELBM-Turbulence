@@ -1,147 +1,61 @@
 #include "d3q27.cuh"
 
 __global__
-void streaming_d3q27(double* f_new, double* f, double* f_eq_BC, double* Rho, double U_lid, double A_TL, double A_TR, double A_TM, int N_x, int N_y) {
+void streaming_d3q27(double* f_new, double* f, double U_lid, int N_x, int Cell_Count, double* w, int* Ksi) {
 	int idx = blockIdx.x * blockDim.x + threadIdx.x;
 	int stride = blockDim.x * gridDim.x;
 
-	if (idx >= N_x * N_y) return; // Ensure we don't access out of bounds
+	if (idx >= Cell_Count) return; // Ensure we don't access out of bounds
 
-	for (int index = idx; index < N_x * N_y; index += stride) {
+	for (int index = idx; index < Cell_Count; index += stride) {
 		int i = index % N_x;
-		int j = index / N_x;
-		int x_max = N_x - 1;
-		int y_max = N_y - 1;
+		int j = (index / N_x) % N_x;
+		int k = index / (N_x * N_x);
 
-		double Rho_t; // Temporary density variable
-		double A; // Constant for Maxwell Diffuse Boundary Conditions
+		double Rho_t = 0.0; // Temporary density variable
+		double A = 0.0; // Constant for Maxwell Diffuse Boundary Conditions
 
-		// Instructions for navigating the grid
-		// f(d, j, i)
-		// i + 1 -> index + 1
-		// i - 1 -> index - 1
-		// j + 1 -> index + N_x
-		// j - 1 -> index - N_x
-		// d     -> (index +- __) * 9 + d
+		// Compute Wall Velocity
+		double ux = 0.0;
+		if (k == N_x-1) { ux = U_lid; }
 
-		if (j == 0) { // Top Boundary
-			if (i == 0) { // Top Left
-				f_new[index * 9 + 0] = f[index * 9 + 0];
-				f_new[index * 9 + 2] = f[(index + N_x) * 9 + 2];
-				f_new[index * 9 + 3] = f[(index + 1) * 9 + 3];
-				f_new[index * 9 + 6] = f[(index + N_x + 1) * 9 + 6];
-				// Unkown PDFS
-				Rho_t = (f_new[index * 9 + 0] + f_new[index * 9 + 2] + f_new[index * 9 + 3] + f_new[index * 9 + 6]) / (1 - A_TL);
-				f_new[index * 9 + 1] = Rho_t / 9.0;
-				f_new[index * 9 + 4] = Rho_t * (1 - 1.5 * U_lid * U_lid) / 9.0;
-				f_new[index * 9 + 5] = Rho_t / 36.0;
-				f_new[index * 9 + 7] = Rho_t * (1 - 3.0 * U_lid + 3.0 * U_lid * U_lid) / 36.0;
-				f_new[index * 9 + 8] = Rho_t * (1 + 3.0 * U_lid + 3.0 * U_lid * U_lid) / 36.0;
+		// Interior and Known Boundary Nodes
+		for (int d = 0; d < 27; d++) {			
+			int in = i - Ksi[3 * d];
+			int jn = j - Ksi[3 * d + 1];
+			int kn = k - Ksi[3 * d + 2];
+
+			bool inside = (in >= 0) && (in < N_x) && (jn >= 0) && (jn < N_x) && (kn >= 0) && (kn < N_x);
+
+			if (inside) {
+				f_new[index * 27 + d] = f[(kn*N_x*N_x + jn*N_x + in) * 27 + d];
+				Rho_t += f_new[index * 27 + d];
 			}
-			else if (i == x_max) { // Top Right
-				f_new[index * 9 + 0] = f[index * 9 + 0];
-				f_new[index * 9 + 1] = f[(index - 1) * 9 + 1];
-				f_new[index * 9 + 2] = f[(index + N_x) * 9 + 2];
-				f_new[index * 9 + 5] = f[(index + N_x - 1) * 9 + 5];
-				// Unkown PDFS
-				Rho_t = (f_new[index * 9 + 0] + f_new[index * 9 + 1] + f_new[index * 9 + 2] + f_new[index * 9 + 5]) / (1 - A_TR);
-				f_new[index * 9 + 3] = Rho_t / 9.0;
-				f_new[index * 9 + 4] = Rho_t * (1 - 1.5 * U_lid * U_lid) / 9.0;
-				f_new[index * 9 + 6] = Rho_t / 36.0;
-				f_new[index * 9 + 7] = Rho_t * (1 - 3.0 * U_lid + 3.0 * U_lid * U_lid) / 36.0;
-				f_new[index * 9 + 8] = Rho_t * (1 + 3.0 * U_lid + 3.0 * U_lid * U_lid) / 36.0;
-			}
-			else { // Top Middle
-				f_new[index * 9 + 0] = f[index * 9 + 0];
-				f_new[index * 9 + 1] = f[(index - 1) * 9 + 1];
-				f_new[index * 9 + 2] = f[(index + N_x) * 9 + 2];
-				f_new[index * 9 + 3] = f[(index + 1) * 9 + 3];
-				f_new[index * 9 + 5] = f[(index + N_x - 1) * 9 + 5];
-				f_new[index * 9 + 6] = f[(index + N_x + 1) * 9 + 6];
-				// Unkown PDFS
-				Rho_t = (f_new[index * 9 + 0] + f_new[index * 9 + 1] + f_new[index * 9 + 2] + f_new[index * 9 + 3] + f_new[index * 9 + 5] + f_new[index * 9 + 6]) / (1 - A_TM);
-				f_new[index * 9 + 4] = Rho_t * (1 - 1.5 * U_lid * U_lid) / 9.0;
-				f_new[index * 9 + 7] = Rho_t * (1 - 3.0 * U_lid + 3.0 * U_lid * U_lid) / 36.0;
-				f_new[index * 9 + 8] = Rho_t * (1 + 3.0 * U_lid + 3.0 * U_lid * U_lid) / 36.0;
+			else {
+				double cu = 3.0 * (Ksi[3 * d] * ux);
+				double uu = 1.5 * (ux * ux);
+				A += w[d] * (1.0 + cu + 0.5 * cu * cu - uu);
 			}
 		}
-		else if (j == y_max) { // Bottom Boundary
-			if (i == 0) { // Bottom Left
-				f_new[index * 9 + 0] = f[index * 9 + 0];
-				f_new[index * 9 + 3] = f[(index + 1) * 9 + 3];
-				f_new[index * 9 + 4] = f[(index - N_x) * 9 + 4];
-				f_new[index * 9 + 7] = f[(index - N_x + 1) * 9 + 7];
-				// Unkown PDFS
-				Rho_t = 36.0 * (f_new[index * 9 + 0] + f_new[index * 9 + 3] + f_new[index * 9 + 4] + f_new[index * 9 + 7]) / 25.0;
-				f_new[index * 9 + 1] = Rho_t / 9.0;
-				f_new[index * 9 + 2] = Rho_t / 9.0;
-				f_new[index * 9 + 5] = Rho_t / 36.0;
-				f_new[index * 9 + 6] = Rho_t / 36.0;
-				f_new[index * 9 + 8] = Rho_t / 36.0;
+
+		// Compute Diffuse Density
+		Rho_t = Rho_t / (1.0 - A);
+
+		// Assign Missing PDFs using Maxwellian Diffuse BC
+		if (i == 0 || i == N_x-1 || j == 0 || j == N_x-1 || k == 0 || k == N_x-1) {
+			for (int d = 0; d < 27; d++) {
+				int in = i - Ksi[3 * d];
+				int jn = j - Ksi[3 * d + 1];
+				int kn = k - Ksi[3 * d + 2];
+
+				bool inside = (in >= 0) && (in < N_x) && (jn >= 0) && (jn < N_x) && (kn >= 0) && (kn < N_x);
+
+				if (!inside) {
+					double cu = 3.0 * (Ksi[3 * d] * ux);
+					double uu = 1.5 * (ux * ux);
+					f_new[index * 27 + d] = Rho_t * w[d] * (1.0 + cu + 0.5 * cu * cu - uu);
+				}
 			}
-			else if (i == x_max) { // Bottom Right
-				f_new[index * 9 + 0] = f[index * 9 + 0];
-				f_new[index * 9 + 1] = f[(index - 1) * 9 + 1];
-				f_new[index * 9 + 4] = f[(index - N_x) * 9 + 4];
-				f_new[index * 9 + 8] = f[(index - N_x - 1) * 9 + 8];
-				// Unkown PDFS
-				Rho_t = 36.0 * (f_new[index * 9 + 0] + f_new[index * 9 + 1] + f_new[index * 9 + 4] + f_new[index * 9 + 8]) / 25.0;
-				f_new[index * 9 + 2] = Rho_t / 9.0;
-				f_new[index * 9 + 3] = Rho_t / 9.0;
-				f_new[index * 9 + 6] = Rho_t / 36.0;
-				f_new[index * 9 + 5] = Rho_t / 36.0;
-				f_new[index * 9 + 7] = Rho_t / 36.0;
-			}
-			else { // Bottom Middle
-				f_new[index * 9 + 0] = f[index * 9 + 0];
-				f_new[index * 9 + 1] = f[(index - 1) * 9 + 1];
-				f_new[index * 9 + 3] = f[(index + 1) * 9 + 3];
-				f_new[index * 9 + 4] = f[(index - N_x) * 9 + 4];
-				f_new[index * 9 + 7] = f[(index - N_x + 1) * 9 + 7];
-				f_new[index * 9 + 8] = f[(index - N_x - 1) * 9 + 8];
-				// Unkown PDFS
-				Rho_t = 6.0 * (f_new[index * 9 + 0] + f_new[index * 9 + 1] + f_new[index * 9 + 3] + f_new[index * 9 + 4] + f_new[index * 9 + 7] + f_new[index * 9 + 8]) / 5.0;
-				f_new[index * 9 + 2] = Rho_t / 9.0;
-				f_new[index * 9 + 5] = Rho_t / 36.0;
-				f_new[index * 9 + 6] = Rho_t / 36.0;
-			}
-		}
-		else if (i == 0) { // Left Boundary
-			f_new[index * 9 + 0] = f[index * 9 + 0];
-			f_new[index * 9 + 2] = f[(index + N_x) * 9 + 2];
-			f_new[index * 9 + 3] = f[(index + 1) * 9 + 3];
-			f_new[index * 9 + 4] = f[(index - N_x) * 9 + 4];
-			f_new[index * 9 + 6] = f[(index + N_x + 1) * 9 + 6];
-			f_new[index * 9 + 7] = f[(index - N_x + 1) * 9 + 7];
-			// Unkown PDFS
-			Rho_t = 6.0 * (f_new[index * 9 + 0] + f_new[index * 9 + 2] + f_new[index * 9 + 3] + f_new[index * 9 + 4] + f_new[index * 9 + 6] + f_new[index * 9 + 7]) / 5.0;
-			f_new[index * 9 + 1] = Rho_t / 9.0;
-			f_new[index * 9 + 5] = Rho_t / 36.0;
-			f_new[index * 9 + 8] = Rho_t / 36.0;
-		}
-		else if (i == x_max) { // Right Boundary
-			f_new[index * 9 + 0] = f[index * 9 + 0];
-			f_new[index * 9 + 1] = f[(index - 1) * 9 + 1];
-			f_new[index * 9 + 2] = f[(index + N_x) * 9 + 2];
-			f_new[index * 9 + 4] = f[(index - N_x) * 9 + 4];
-			f_new[index * 9 + 5] = f[(index + N_x - 1) * 9 + 5];
-			f_new[index * 9 + 8] = f[(index - N_x - 1) * 9 + 8];
-			// Unkown PDFS
-			Rho_t = 6.0 * (f_new[index * 9 + 0] + f_new[index * 9 + 2] + f_new[index * 9 + 3] + f_new[index * 9 + 4] + f_new[index * 9 + 6] + f_new[index * 9 + 7]) / 5.0;
-			f_new[index * 9 + 3] = Rho_t / 9.0;
-			f_new[index * 9 + 6] = Rho_t / 36.0;
-			f_new[index * 9 + 7] = Rho_t / 36.0;
-		}
-		else { // Interior Nodes
-			f_new[index * 9 + 0] = f[index * 9 + 0];
-			f_new[index * 9 + 1] = f[(index - 1) * 9 + 1];
-			f_new[index * 9 + 2] = f[(index + N_x) * 9 + 2];
-			f_new[index * 9 + 3] = f[(index + 1) * 9 + 3];
-			f_new[index * 9 + 4] = f[(index - N_x) * 9 + 4];
-			f_new[index * 9 + 5] = f[(index + N_x - 1) * 9 + 5];
-			f_new[index * 9 + 6] = f[(index + N_x + 1) * 9 + 6];
-			f_new[index * 9 + 7] = f[(index - N_x + 1) * 9 + 7];
-			f_new[index * 9 + 8] = f[(index - N_x - 1) * 9 + 8];
 		}
 	}
 }

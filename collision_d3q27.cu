@@ -1,19 +1,19 @@
 #include "d3q27.cuh"
 
 __global__
-void collision_d3q27(double* f, double* viscousity, double* f_new, double* f_eq, double Beta, int N_x, int N_y) {
+void collision_d3q27(double* f, double* viscousity, double* f_new, double* f_eq, double Beta, int Cell_Count) {
 	int idx = blockIdx.x * blockDim.x + threadIdx.x;
 	int stride = blockDim.x * gridDim.x;
 
-	if (idx >= N_x * N_y) return; // Ensure we don't access out of bounds
+	if (idx >= Cell_Count) return; // Ensure we don't access out of bounds
 
-	for (int i = idx; i < N_x * N_y; i += stride) {
+	for (int i = idx; i < Cell_Count; i += stride) {
 		// Initialize Variables
-		double z[9];
-		double z_neg[9] = { 0.0 };
+		double z[27];
+		double z_neg[27] = { 0.0 };
 		double z_max = 0;
 		double z_min = INFINITY;
-		double f_neg[9] = { 0.0 };
+		double f_neg[27] = { 0.0 };
 		double a = 0;
 		double b = 0;
 		double c = 0;
@@ -21,8 +21,8 @@ void collision_d3q27(double* f, double* viscousity, double* f_new, double* f_eq,
 		int index;
 
 		// Calculate z and z_neg values
-		for (int d = 0; d < 9; d++) {
-			index = i * 9 + d;
+		for (int d = 0; d < 27; d++) {
+			index = i * 27 + d;
 			z[d] = f_eq[index] / f_new[index] - 1;
 			if (z[d] < 0) {
 				z_neg[d] = z[d];
@@ -33,8 +33,8 @@ void collision_d3q27(double* f, double* viscousity, double* f_new, double* f_eq,
 		}
 
 		// Calculate a, b, and c for quadratic equation
-		for (int d = 0; d < 9; d++) {
-			index = i * 9 + d;
+		for (int d = 0; d < 27; d++) {
+			index = i * 27 + d;
 			a += f_neg[d] * pow(z_neg[d], 3) / 2;
 			b += f_new[index] * pow(z[d], 2) / 2;
 			c += f_new[index] * 2 * pow(z[d], 2) / (2 + z[d]);
@@ -49,15 +49,9 @@ void collision_d3q27(double* f, double* viscousity, double* f_new, double* f_eq,
 			alpha = 2 * c / denominator;
 		}
 
-		//// Calculate alpha max
-		//double alpha_max = -1 / (Beta * z_min);
-		//if (alpha > alpha_max) {
-		//	alpha = (1.0 + alpha_max) / 2.0;
-		//}
-
 		// Collision Step
-		for (int d = 0; d < 9; d++) {
-			index = i * 9 + d;
+		for (int d = 0; d < 27; d++) {
+			index = i * 27 + d;
 			f[index] = f_new[index] + alpha * Beta * (f_eq[index] - f_new[index]);
 		}
 
@@ -66,3 +60,4 @@ void collision_d3q27(double* f, double* viscousity, double* f_new, double* f_eq,
 		viscousity[i] = (1.0 / alpha / Beta - 0.5) / 3.0;
 	}
 }
+      
