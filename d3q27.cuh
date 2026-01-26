@@ -26,7 +26,7 @@ __global__ void eqm_d3q27(double* f_eq, double* Rho, double* Ux, double* Uy, dou
 
 #ifndef STREAMING_D3Q27_H
 #define STREAMING_D3Q27_H
-__global__ void streaming_d3q27(double* f_new, double* f, double U_lid, int N_x, int Cell_Count, double* w, int* Ksi);
+__global__ void streaming_d3q27(double* f_new, double* f, double U_lid, int N_x, int N_y, int Cell_Count, double* w, int* Ksi);
 #endif
 
 #ifndef MOMENT_RHO_U_D3Q27_H

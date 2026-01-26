@@ -17,15 +17,15 @@ int main()
 	// Tuner
 	bool start_from_new = true;
 
-	static constexpr int N_x = 81;
+	static constexpr int N_x = 64;
 	const double U_lid = 0.05 / sqrt(3);// Re * (0.5 / Beta - 0.5) / (double(N_x) * 3.0); // Lid velocity
-	double Re = 5000.0;	// Reynolds number
+	double Re = 100.0;	// Reynolds number
 	double Beta = 1 / (6.0 * U_lid * double(N_x) / Re + 1);
 	int Timer = 100000;
 	int FW_freq = 1000;
 
 	// Definition of Parameters
-	static constexpr int N_y = N_x;
+	static constexpr int N_y = N_x * 2;
 	static constexpr int N_z = N_y;
 	static constexpr int Cell_Count = N_x * N_y * N_z;
 
@@ -177,7 +177,7 @@ int main()
 	for (int t = 0; t < Timer; t++)
 	{
 		// Streaming/Boundary Conditions
-		streaming_d3q27 << <smallBlocks, blockSize >> > (d_f_new, d_f, U_lid, N_x, Cell_Count, w, Ksi);
+		streaming_d3q27 << <smallBlocks, blockSize >> > (d_f_new, d_f, U_lid, N_x, N_y, Cell_Count, w, Ksi);
 		CUDA_CHECK(cudaGetLastError());
 		CUDA_CHECK(cudaDeviceSynchronize());
 
