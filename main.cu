@@ -17,16 +17,16 @@ int main()
 	// Tuner
 	bool start_from_new = true;
 
-	static constexpr int N_x = 64;
+	static constexpr int N_x = 81;
 	const double U_lid = 0.05 / sqrt(3);// Re * (0.5 / Beta - 0.5) / (double(N_x) * 3.0); // Lid velocity
-	double Re = 100.0;	// Reynolds number
+	double Re = 5000.0;	// Reynolds number
 	double Beta = 1 / (6.0 * U_lid * double(N_x) / Re + 1);
 	int Timer = 100000;
 	int FW_freq = 1000;
 
 	// Definition of Parameters
-	static constexpr int N_y = N_x * 2;
-	static constexpr int N_z = N_y;
+	static constexpr int N_y = N_x * 1;
+	static constexpr int N_z = N_x;
 	static constexpr int Cell_Count = N_x * N_y * N_z;
 
 	static constexpr int Q = 27; // D3Q27
@@ -77,6 +77,11 @@ int main()
 	int* Ksi = nullptr;
 	CUDA_CHECK(cudaMalloc((void**)&Ksi, Q * 3 * sizeof(int)));
 	CUDA_CHECK(cudaMemcpy(Ksi, h_Ksi, Q * 3 * sizeof(int), cudaMemcpyHostToDevice));
+
+	int h_opp[27] = {0, 2, 1, 4, 3, 6, 5, 8, 7, 10,	9, 12, 11, 14, 13, 16, 15, 18, 17, 20, 19, 22, 21, 24, 23, 26, 25};
+	int* opp = nullptr;
+	CUDA_CHECK(cudaMalloc((void**)&opp, Q * sizeof(int)));
+	CUDA_CHECK(cudaMemcpy(opp, h_opp, Q * sizeof(int), cudaMemcpyHostToDevice));
 
 	// Initialization of Parameters
 	double Rho_ref = 1.0; // Reference density

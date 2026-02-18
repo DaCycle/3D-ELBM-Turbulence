@@ -1,11 +1,12 @@
-clc; clear; close all;
+% clc; clear; close all;
 
 %% Collect data
-snapread = 74000;
+snapread = 100000;
+Y_elongation = 1;
 info = dir(sprintf('snapshots/Density_%06d.dat', snapread));
-N = int64((info.bytes/8)^(1/3));
+N = int64(((info.bytes/8)/Y_elongation)^(1/3));
 N_x = N;
-N_y = N;
+N_y = N*Y_elongation;
 N_z = N;
 
 %% Initialize Constants
@@ -16,75 +17,68 @@ Beta = 1 / (6*U_lid*double(N)/Re + 1); % Relaxation time (must be >0.5)
 % U_lid = Re*(0.5/Beta-0.5)*c_s^2/double(N);
 
 %% Save Data to Matlab
-max_iterations = snapread;
-FW_frequency = 1000;
-CaseName = sprintf('LDC_Resolution%d^3_Iterations%d.%d.mat', N, max_iterations, FW_frequency);
-Rho = zeros(N,N,N,max_iterations/FW_frequency);
-U = zeros(N,N,N,max_iterations/FW_frequency);
-V = zeros(N,N,N,max_iterations/FW_frequency);
-W = zeros(N,N,N,max_iterations/FW_frequency);
-for i = 1:floor(max_iterations/FW_frequency)
-    fid_Rho = fopen(sprintf('snapshots/Density_%06d.dat', i*FW_frequency));
-    fid_U = fopen(sprintf('snapshots/X_Velocity_%06d.dat', i*FW_frequency));
-    fid_V = fopen(sprintf('snapshots/Y_Velocity_%06d.dat', i*FW_frequency));
-    fid_W = fopen(sprintf('snapshots/Z_Velocity_%06d.dat', i*FW_frequency));
-    raw_Rho = fread(fid_Rho, 'double');
-    raw_U = fread(fid_U, 'double');
-    raw_V = fread(fid_V, 'double');
-    raw_W = fread(fid_W, 'double');
-    fclose(fid_Rho);
-    fclose(fid_U);
-    fclose(fid_V);
-    fclose(fid_W);
-    
-    Rho_save = reshape(raw_Rho, N, N, N);
-    U_save = reshape(raw_U, N, N, N);
-    V_save = reshape(raw_V, N, N, N);
-    W_save = reshape(raw_W, N, N, N);
-    Rho_save = permute(Rho_save, [3 2 1]);
-    U_save = permute(U_save, [3 2 1]);
-    V_save = permute(V_save, [3 2 1]);
-    W_save = permute(W_save, [3 2 1]);
-    
-    Rho(:,:,:,i) = Rho_save;
-    U(:,:,:,i) = U_save;
-    V(:,:,:,i) = V_save;
-    W(:,:,:,i) = W_save;
-end
-save(CaseName, "Rho", "U", "V", "W", "Beta", "Re", "U_lid",'-v7.3')
+% max_iterations = snapread;
+% FW_frequency = 1000;
+% % CaseName = sprintf('LDC_Resolution%d^2x%d_Iterations%d.%d.mat', N_x, N_y, max_iterations, FW_frequency);
+% CaseName = sprintf('LDC_Resolution%d^3_Iterations%d.%d.mat', N_x, max_iterations, FW_frequency);
+% Rho = zeros(N_x,N_y,N_z,max_iterations/FW_frequency);
+% U = zeros(N_x,N_y,N_z,max_iterations/FW_frequency);
+% V = zeros(N_x,N_y,N_z,max_iterations/FW_frequency);
+% W = zeros(N_x,N_y,N_z,max_iterations/FW_frequency);
+% for i = 1:floor(max_iterations/FW_frequency)
+%     fid_Rho = fopen(sprintf('snapshots/Density_%06d.dat', i*FW_frequency));
+%     fid_U = fopen(sprintf('snapshots/X_Velocity_%06d.dat', i*FW_frequency));
+%     fid_V = fopen(sprintf('snapshots/Y_Velocity_%06d.dat', i*FW_frequency));
+%     fid_W = fopen(sprintf('snapshots/Z_Velocity_%06d.dat', i*FW_frequency));
+%     raw_Rho = fread(fid_Rho, 'double');
+%     raw_U = fread(fid_U, 'double');
+%     raw_V = fread(fid_V, 'double');
+%     raw_W = fread(fid_W, 'double');
+%     fclose(fid_Rho);
+%     fclose(fid_U);
+%     fclose(fid_V);
+%     fclose(fid_W);
+% 
+%     Rho_save = reshape(raw_Rho, N_x,N_y,N_z);
+%     U_save = reshape(raw_U, N_x,N_y,N_z);
+%     V_save = reshape(raw_V, N_x,N_y,N_z);
+%     W_save = reshape(raw_W, N_x,N_y,N_z);
+%     Rho_save = permute(Rho_save, [3 2 1]);
+%     U_save = permute(U_save, [3 2 1]);
+%     V_save = permute(V_save, [3 2 1]);
+%     W_save = permute(W_save, [3 2 1]);
+% 
+%     Rho(:,:,:,i) = Rho_save;
+%     U(:,:,:,i) = U_save;
+%     V(:,:,:,i) = V_save;
+%     W(:,:,:,i) = W_save;
+% end
+% save(CaseName, "Rho", "U", "V", "W", "Beta", "Re", "U_lid",'-v7.3')
 
 %% Regular Plots
 fid_Rho = fopen(sprintf('snapshots/Density_%06d.dat', snapread));
 fid_XVel = fopen(sprintf('snapshots/X_Velocity_%06d.dat', snapread));
 fid_YVel = fopen(sprintf('snapshots/Y_Velocity_%06d.dat', snapread));
 fid_ZVel = fopen(sprintf('snapshots/Z_Velocity_%06d.dat', snapread));
-% fid_Visc = fopen(sprintf('snapshots/Viscousity_%06d.dat',snapread));
-% fid_pdf = fopen(sprintf('snapshots/pdf_%06d.dat',snapread));
 raw_Rho = fread(fid_Rho, 'double');
 raw_U = fread(fid_XVel, 'double');
 raw_V = fread(fid_YVel, 'double');
 raw_W = fread(fid_ZVel, 'double');
-% raw_Visc = fread(fid_Visc, 'double');
-% raw_pdf = fread(fid_pdf, 'double');
 fclose(fid_Rho);
 fclose(fid_XVel);
 fclose(fid_YVel);
 fclose(fid_ZVel);
-% fclose(fid_Visc);
-% fclose(fid_pdf);
-Rho = reshape(raw_Rho, N, N, N);
-U = reshape(raw_U, N, N, N);
-V = reshape(raw_V, N, N, N);
-W = reshape(raw_W, N, N, N);
-% Visc = reshape(raw_Visc, N, N, N)';
-% pdf = reshape(raw_pdf, N, N, N, 27);
+Rho = reshape(raw_Rho, N_x,N_y,N_z);
+U = reshape(raw_U, N_x,N_y,N_z);
+V = reshape(raw_V, N_x,N_y,N_z);
+W = reshape(raw_W, N_x,N_y,N_z);
 Rho = permute(Rho, [3 2 1]);
 U = permute(U, [3 2 1]);
 V = permute(V, [3 2 1]);
 W = permute(W, [3 2 1]);
 
 %% Plot data
-y_plot = [1 round(N/4) round(N/2) round(3*N/4) N];
+y_plot = [1 round(N_y/4) round(N_y/2) round(3*N_y/4) N_y];
 
 % Density Contour
 for i = 1:length(y_plot)
@@ -115,13 +109,13 @@ imagesc(ax, [-1 1], [0 1], img)
 set(ax, 'YDir', 'normal')   % important for correct orientation
 hold on
 
-U_f2d = squeeze(U(:,round(N/2),:));
+U_f2d = squeeze(U(:,round(N_y/2),:));
 u_sim = U_f2d(:,ceil(N/2));
 z_sim = linspace(0,1,N);
 plot(rot90(u_sim/U_lid,1), z_sim,'blue')
 hold on
 
-W_f2d = squeeze(W(:,round(N/2),:));
+W_f2d = squeeze(W(:,round(N_y/2),:));
 w_sim = W_f2d(ceil(N/2), :) ./ 2;
 x_sim = linspace(-1,1,N);
 plot(x_sim, rot90(w_sim/U_lid,3)+0.5,'green')

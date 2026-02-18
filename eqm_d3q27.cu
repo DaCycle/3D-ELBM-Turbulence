@@ -24,27 +24,6 @@ void eqm_d3q27(double* f_eq, double* Rho, double* Ux, double* Uy, double* Uz, in
 		double L[4][4] = { 0.0 };
 		double y[4] = { 0.0 };
 		double delta[4] = { 0.0 };
-		//double R_0 = 1.0;
-		//double R_x = R_0;
-		//double R_y = R_0;
-		//double J_11;
-		//double J_12;
-		//double J_13;
-		//double J_22;
-		//double J_23;
-		//double J_33;
-		//double L_11;
-		//double L_12;
-		//double L_13;
-		//double L_22;
-		//double L_23;
-		//double L_33;
-		//double y1;
-		//double y2;
-		//double y3;
-		//double delta_alpha;
-		//double delta_beta_x;
-		//double delta_beta_y;
 
 		// Newton's method loop
 		for (int j = 0; j < 100; j++) {
