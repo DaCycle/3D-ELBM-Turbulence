@@ -57,7 +57,7 @@ void collision_d3q27(double* f, double* viscousity, double* f_new, double* f_eq,
 
 		// Write Viscousity
 		//viscousity[i] = (1.0 / alpha - 0.5) / 3.0;
-		viscousity[i] = (1.0 / alpha / Beta - 0.5) / 3.0;
+		viscousity[i] = alpha; // (1.0 / alpha / Beta - 0.5) / 3.0; // (Measure alpha only for now)
 	}
 }
 

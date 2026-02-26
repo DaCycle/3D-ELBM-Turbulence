@@ -17,7 +17,7 @@ int main()
 	// Tuner
 	bool start_from_new = true;
 
-	static constexpr int N_x = 81;
+	static constexpr int N_x = 129;
 	const double U_lid = 0.05 / sqrt(3);// Re * (0.5 / Beta - 0.5) / (double(N_x) * 3.0); // Lid velocity
 	double Re = 5000.0;	// Reynolds number
 	double Beta = 1 / (6.0 * U_lid * double(N_x) / Re + 1);
@@ -182,7 +182,7 @@ int main()
 	for (int t = 0; t < Timer; t++)
 	{
 		// Streaming/Boundary Conditions
-		streaming_d3q27 << <smallBlocks, blockSize >> > (d_f_new, d_f, U_lid, N_x, N_y, Cell_Count, w, Ksi);
+		streaming_d3q27 << <smallBlocks, blockSize >> > (d_f_new, d_f, U_lid, N_x, N_y, Cell_Count, w, Ksi, opp);
 		CUDA_CHECK(cudaGetLastError());
 		CUDA_CHECK(cudaDeviceSynchronize());
 
@@ -217,8 +217,8 @@ int main()
 			CUDA_CHECK(cudaMemcpy(h_Uz, d_Uz, Cell_Count * sizeof(double), cudaMemcpyDeviceToHost));
 			writeToFile(t + 1, h_Uz, "Z_Velocity", outputFile, Cell_Count * sizeof(double));
 
-			//cudaMemcpy(h_viscousity, d_viscousity, Cell_Count * sizeof(double), cudaMemcpyDeviceToHost);
-			//writeToFile(t + 1, h_viscousity, "Viscousity", outputFile, Cell_Count * sizeof(double));
+			cudaMemcpy(h_viscousity, d_viscousity, Cell_Count * sizeof(double), cudaMemcpyDeviceToHost);
+			writeToFile(t + 1, h_viscousity, "Viscousity", outputFile, Cell_Count * sizeof(double));
 		}
 	}
 

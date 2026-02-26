@@ -60,22 +60,27 @@ fid_Rho = fopen(sprintf('snapshots/Density_%06d.dat', snapread));
 fid_XVel = fopen(sprintf('snapshots/X_Velocity_%06d.dat', snapread));
 fid_YVel = fopen(sprintf('snapshots/Y_Velocity_%06d.dat', snapread));
 fid_ZVel = fopen(sprintf('snapshots/Z_Velocity_%06d.dat', snapread));
+fid_Visc = fopen(sprintf('snapshots/Viscousity_%06d.dat', snapread));
 raw_Rho = fread(fid_Rho, 'double');
 raw_U = fread(fid_XVel, 'double');
 raw_V = fread(fid_YVel, 'double');
 raw_W = fread(fid_ZVel, 'double');
+raw_Visc = fread(fid_Visc, 'double');
 fclose(fid_Rho);
 fclose(fid_XVel);
 fclose(fid_YVel);
 fclose(fid_ZVel);
+fclose(fid_Visc);
 Rho = reshape(raw_Rho, N_x,N_y,N_z);
 U = reshape(raw_U, N_x,N_y,N_z);
 V = reshape(raw_V, N_x,N_y,N_z);
 W = reshape(raw_W, N_x,N_y,N_z);
+Visc = reshape(raw_Visc, N_x,N_y,N_z);
 Rho = permute(Rho, [3 2 1]);
 U = permute(U, [3 2 1]);
 V = permute(V, [3 2 1]);
 W = permute(W, [3 2 1]);
+Visc = permute(Visc, [3 2 1]);
 
 %% Plot data
 y_plot = [1 round(N_y/4) round(N_y/2) round(3*N_y/4) N_y];
@@ -121,6 +126,17 @@ x_sim = linspace(-1,1,N);
 plot(x_sim, rot90(w_sim/U_lid,3)+0.5,'green')
 
 axis tight
+
+% Viscosity Contour
+for i = 1:length(y_plot)
+    figure
+    contourf(squeeze(Visc(:,y_plot(i),:)), 30)
+    title(sprintf('Viscosity at y = %d', y_plot(i)));
+    xlim([-0.2*N N*1.2])
+    ylim([-0.2*N N*1.2])
+    axis equal tight
+    colorbar;
+end
 
 % % Streamlines
 % N = double(N);
