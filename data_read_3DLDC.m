@@ -1,7 +1,7 @@
 % clc; clear; close all;
 
 %% Collect data
-snapread = 100000;
+snapread = 500000;
 Y_elongation = 1;
 info = dir(sprintf('snapshots/Density_%06d.dat', snapread));
 N = int64(((info.bytes/8)/Y_elongation)^(1/3));
@@ -9,7 +9,7 @@ N_x = N;
 N_y = N*Y_elongation;
 N_z = N;
 
-%% Initialize Constants
+%% Initialize Constants34400
 c_s = 1/sqrt(3); % Speed of Sound for D2Q9
 U_lid = 0.05 * c_s;
 Re = 5000;   % Reynolds number
@@ -19,13 +19,13 @@ Beta = 1 / (6*U_lid*double(N)/Re + 1); % Relaxation time (must be >0.5)
 %% Save Data to Matlab
 % max_iterations = snapread;
 % FW_frequency = 1000;
-% % CaseName = sprintf('LDC_Resolution%d^2x%d_Iterations%d.%d.mat', N_x, N_y, max_iterations, FW_frequency);
+% % CaseName = sprintf('LDC_Resolution%d^3x%d_Iterations%d.%d.mat', N_x, N_y, max_iterations, FW_frequency);
 % CaseName = sprintf('LDC_Resolution%d^3_Iterations%d.%d.mat', N_x, max_iterations, FW_frequency);
 % Rho = zeros(N_x,N_y,N_z,max_iterations/FW_frequency);
 % U = zeros(N_x,N_y,N_z,max_iterations/FW_frequency);
 % V = zeros(N_x,N_y,N_z,max_iterations/FW_frequency);
 % W = zeros(N_x,N_y,N_z,max_iterations/FW_frequency);
-% for i = 1:floor(max_iterations/FW_frequency)
+% for i = 450:550
 %     fid_Rho = fopen(sprintf('snapshots/Density_%06d.dat', i*FW_frequency));
 %     fid_U = fopen(sprintf('snapshots/X_Velocity_%06d.dat', i*FW_frequency));
 %     fid_V = fopen(sprintf('snapshots/Y_Velocity_%06d.dat', i*FW_frequency));
@@ -81,6 +81,7 @@ U = permute(U, [3 2 1]);
 V = permute(V, [3 2 1]);
 W = permute(W, [3 2 1]);
 Visc = permute(Visc, [3 2 1]);
+save(sprintf('LDC_Resolution%d^3x%d_Iterations%d.mat', N_x, N_y, snapread), "Rho", "U", "V", "W", "Beta", "Re", "U_lid",'-v7.3')
 
 %% Plot data
 y_plot = [1 round(N_y/4) round(N_y/2) round(3*N_y/4) N_y];

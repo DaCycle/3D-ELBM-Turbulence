@@ -17,11 +17,11 @@ int main()
 	// Tuner
 	bool start_from_new = true;
 
-	static constexpr int N_x = 129;
+	static constexpr int N_x = 257;
 	const double U_lid = 0.05 / sqrt(3);// Re * (0.5 / Beta - 0.5) / (double(N_x) * 3.0); // Lid velocity
 	double Re = 5000.0;	// Reynolds number
 	double Beta = 1 / (6.0 * U_lid * double(N_x) / Re + 1);
-	int Timer = 100000;
+	int Timer = 5000000;
 	int FW_freq = 1000;
 
 	// Definition of Parameters

@@ -61,147 +61,147 @@
 //}
 
 // Half Way Bounce-Back
-//#include "d3q27.cuh"   // must contain __constant__ int cx[27], cy[27], cz[27], opp[27];  and __constant__ double w[27];
-//
-//__global__
-//void streaming_d3q27(double* f_new, double* f, double U_lid, int N_x, int N_y, int Cell_Count, double* w, int* Ksi, int*opp)
-//{
-//    int idx = blockIdx.x * blockDim.x + threadIdx.x;
-//    int stride = blockDim.x * gridDim.x;
-//
-//    for (int i = idx; i < Cell_Count; i += stride) {
-//        int x = i % N_x;
-//        int y = (i / N_x) % N_y;
-//        int z = i / (N_x * N_y);
-//
-//        bool is_lid = (z == N_x - 1);
-//
-//        // rho only needed on the lid
-//        double rho = 0.0;
-//        if (is_lid) {
-//            for (int d = 0; d < 27; d++) {
-//                rho += f[i * 27 + d];
-//            }
-//        }
-//
-//        for (int d = 0; d < 27; d++) {
-//            int sx = x - Ksi[3 * d];
-//            int sy = y - Ksi[3 * d + 1];
-//            int sz = z - Ksi[3 * d + 2];
-//
-//            if (sx >= 0 && sx < N_x && sy >= 0 && sy < N_y && sz >= 0 && sz < N_x) {
-//                // normal streaming from inside the domain
-//                int sidx = sx + sy * N_x + sz * (N_x * N_y);
-//                f_new[i * 27 + d] = f[sidx * 27 + d];
-//            }
-//            else {
-//                // boundary crossed → half-way bounce-back
-//                int op = opp[d];
-//                double val = f[i * 27 + op];
-//
-//                // moving-lid correction only when the link crossed the lid (sz >= N_x)
-//                if (is_lid && sz >= N_x) {
-//                    val += 6.0 * w[d] * rho * (Ksi[3 * d] * U_lid);   // 6 = 2 / cs2
-//                }
-//                // all other walls (bottom, sides, front/back) are stationary → no extra term
-//
-//                f_new[i * 27 + d] = val;
-//            }
-//        }
-//    }
-//}
-
-// Half Way Bounce-Back for all boundaries except top lid, Maxwell Diffuse for top lid
 #include "d3q27.cuh"
 
 __global__
-void streaming_d3q27(double* f_new, double* f, double U_lid, int N_x, int N_y, int Cell_Count, double* w, int* Ksi, int* Opp)
+void streaming_d3q27(double* f_new, double* f, double U_lid, int N_x, int N_y, int Cell_Count, double* w, int* Ksi, int*opp)
 {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
     int stride = blockDim.x * gridDim.x;
 
-    if (idx >= Cell_Count) return;
+    for (int i = idx; i < Cell_Count; i += stride) {
+        int x = i % N_x;
+        int y = (i / N_x) % N_y;
+        int z = i / (N_x * N_y);
 
-    for (int index = idx; index < Cell_Count; index += stride) {
+        bool is_lid = (z == N_x - 1);
 
-        int i = index % N_x;
-        int j = (index / N_x) % N_y;
-        int k = index / (N_x * N_y);
+        // rho only needed on the lid
+        double rho = 0.0;
+        if (is_lid) {
+            for (int d = 0; d < 27; d++) {
+                rho += f[i * 27 + d];
+            }
+        }
 
-        bool on_x_wall = (i == 0 || i == N_x - 1);
-        bool on_y_wall = (j == 0 || j == N_y - 1);
-        bool on_z_wall = (k == 0);
-        bool on_lid = (k == N_x - 1);
-
-        bool stationary_wall = (on_x_wall || on_y_wall || on_z_wall) && !on_lid;
-
-        double Rho_t = 0.0;
-        double A = 0.0;
-
-        // Lid velocity
-        double ux = (on_lid ? U_lid : 0.0);
-
-        // --- Streaming ---
         for (int d = 0; d < 27; d++) {
+            int sx = x - Ksi[3 * d];
+            int sy = y - Ksi[3 * d + 1];
+            int sz = z - Ksi[3 * d + 2];
 
-            int in = i - Ksi[3 * d];
-            int jn = j - Ksi[3 * d + 1];
-            int kn = k - Ksi[3 * d + 2];
-
-            bool inside =
-                (in >= 0 && in < N_x) &&
-                (jn >= 0 && jn < N_y) &&
-                (kn >= 0 && kn < N_x);
-
-            if (inside) {
-                f_new[index * 27 + d] =
-                    f[(kn * N_x * N_y + jn * N_x + in) * 27 + d];
-                Rho_t += f_new[index * 27 + d];
+            if (sx >= 0 && sx < N_x && sy >= 0 && sy < N_y && sz >= 0 && sz < N_x) {
+                // normal streaming from inside the domain
+                int sidx = sx + sy * N_x + sz * (N_x * N_y);
+                f_new[i * 27 + d] = f[sidx * 27 + d];
             }
             else {
+                // boundary crossed → half-way bounce-back
+                int op = opp[d];
+                double val = f[i * 27 + op];
 
-                // --- Stationary walls: half-way bounce-back ---
-                if (stationary_wall) {
-                    int db = Opp[d];
-                    f_new[index * 27 + d] = f[index * 27 + db];
+                // moving-lid correction only when the link crossed the lid (sz >= N_x)
+                if (is_lid && sz >= N_x) {
+                    val += 6.0 * w[d] * rho * (Ksi[3 * d] * U_lid);   // 6 = 2 / cs2
                 }
-                // --- Lid / edges touching lid: diffuse ---
-                else {
-                    double cu = 3.0 * (Ksi[3 * d] * ux);
-                    double uu = 1.5 * ux * ux;
-                    A += w[d] * (1.0 + cu + 0.5 * cu * cu - uu);
-                }
-            }
-        }
+                // all other walls (bottom, sides, front/back) are stationary → no extra term
 
-        // --- Diffuse density (only needed on lid / lid edges) ---
-        if (!stationary_wall && (on_x_wall || on_y_wall || on_lid)) {
-            Rho_t /= (1.0 - A);
-        }
-
-        // --- Assign missing PDFs for diffuse nodes only ---
-        if (!stationary_wall && (on_x_wall || on_y_wall || on_lid)) {
-            for (int d = 0; d < 27; d++) {
-
-                int in = i - Ksi[3 * d];
-                int jn = j - Ksi[3 * d + 1];
-                int kn = k - Ksi[3 * d + 2];
-
-                bool inside =
-                    (in >= 0 && in < N_x) &&
-                    (jn >= 0 && jn < N_y) &&
-                    (kn >= 0 && kn < N_x);
-
-                if (!inside) {
-                    double cu = 3.0 * (Ksi[3 * d] * ux);
-                    double uu = 1.5 * ux * ux;
-                    f_new[index * 27 + d] =
-                        Rho_t * w[d] * (1.0 + cu + 0.5 * cu * cu - uu);
-                }
+                f_new[i * 27 + d] = val;
             }
         }
     }
 }
+
+// Half Way Bounce-Back for all boundaries except top lid, Maxwell Diffuse for top lid
+//#include "d3q27.cuh"
+//
+//__global__
+//void streaming_d3q27(double* f_new, double* f, double U_lid, int N_x, int N_y, int Cell_Count, double* w, int* Ksi, int* Opp)
+//{
+//    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+//    int stride = blockDim.x * gridDim.x;
+//
+//    if (idx >= Cell_Count) return;
+//
+//    for (int index = idx; index < Cell_Count; index += stride) {
+//
+//        int i = index % N_x;
+//        int j = (index / N_x) % N_y;
+//        int k = index / (N_x * N_y);
+//
+//        bool on_x_wall = (i == 0 || i == N_x - 1);
+//        bool on_y_wall = (j == 0 || j == N_y - 1);
+//        bool on_z_wall = (k == 0);
+//        bool on_lid = (k == N_x - 1);
+//
+//        bool stationary_wall = (on_x_wall || on_y_wall || on_z_wall) && !on_lid;
+//
+//        double Rho_t = 0.0;
+//        double A = 0.0;
+//
+//        // Lid velocity
+//        double ux = (on_lid ? U_lid : 0.0);
+//
+//        // --- Streaming ---
+//        for (int d = 0; d < 27; d++) {
+//
+//            int in = i - Ksi[3 * d];
+//            int jn = j - Ksi[3 * d + 1];
+//            int kn = k - Ksi[3 * d + 2];
+//
+//            bool inside =
+//                (in >= 0 && in < N_x) &&
+//                (jn >= 0 && jn < N_y) &&
+//                (kn >= 0 && kn < N_x);
+//
+//            if (inside) {
+//                f_new[index * 27 + d] =
+//                    f[(kn * N_x * N_y + jn * N_x + in) * 27 + d];
+//                Rho_t += f_new[index * 27 + d];
+//            }
+//            else {
+//
+//                // --- Stationary walls: half-way bounce-back ---
+//                if (stationary_wall) {
+//                    int db = Opp[d];
+//                    f_new[index * 27 + d] = f[index * 27 + db];
+//                }
+//                // --- Lid / edges touching lid: diffuse ---
+//                else {
+//                    double cu = 3.0 * (Ksi[3 * d] * ux);
+//                    double uu = 1.5 * ux * ux;
+//                    A += w[d] * (1.0 + cu + 0.5 * cu * cu - uu);
+//                }
+//            }
+//        }
+//
+//        // --- Diffuse density (only needed on lid / lid edges) ---
+//        if (!stationary_wall && (on_x_wall || on_y_wall || on_lid)) {
+//            Rho_t /= (1.0 - A);
+//        }
+//
+//        // --- Assign missing PDFs for diffuse nodes only ---
+//        if (!stationary_wall && (on_x_wall || on_y_wall || on_lid)) {
+//            for (int d = 0; d < 27; d++) {
+//
+//                int in = i - Ksi[3 * d];
+//                int jn = j - Ksi[3 * d + 1];
+//                int kn = k - Ksi[3 * d + 2];
+//
+//                bool inside =
+//                    (in >= 0 && in < N_x) &&
+//                    (jn >= 0 && jn < N_y) &&
+//                    (kn >= 0 && kn < N_x);
+//
+//                if (!inside) {
+//                    double cu = 3.0 * (Ksi[3 * d] * ux);
+//                    double uu = 1.5 * ux * ux;
+//                    f_new[index * 27 + d] =
+//                        Rho_t * w[d] * (1.0 + cu + 0.5 * cu * cu - uu);
+//                }
+//            }
+//        }
+//    }
+//}
 
 
 //#include "d3q27.cuh"
